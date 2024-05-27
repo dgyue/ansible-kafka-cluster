@@ -1,0 +1,83 @@
+---
+# 拷贝jdk安装包
+- name: "copy jdk package"
+  copy:
+    src: "jdk-{{ jdk_version }}_linux-{{ jdk_os_arch }}_bin.tar.gz"
+    dest: "/tmp/jdk-{{ jdk_version }}_linux-{{ jdk_os_arch }}_bin.tar.gz"
+
+# 解压缩jdk安装包
+- name: "uncompress jdk package"
+  unarchive:
+    src: "/tmp/jdk-{{ jdk_version }}_linux-{{ jdk_os_arch }}_bin.tar.gz"
+    dest: "/usr/local/lib"
+    copy: no
+
+# 拷贝环境变量脚本到指定目录
+- name: "copy env shell"
+  template:
+    src: jdk.sh.j2
+    dest: /etc/profile.d/jdk.sh
+
+# 加载jdk环境变量
+- name: "load jdk env"
+  shell: source /etc/profile
+
+# 创建kafka用户
+- name: "creat user kafka"
+  user:
+    name: "{{ kafka_start_user }}"
+    shell: /sbin/nologin
+    create_home: no
+  ignore_errors: yes
+
+# 创建工作目录
+- name: "create work directory"
+  file:
+    dest: "{{ base_directory }}/kafka_{{ kafka_http_port }}"
+    state: directory
+    mode: 0755
+    owner: "{{ kafka_start_user }}"
+    group: "{{ kafka_start_user }}"
+
+# 拷贝kafka安装包
+- name: "copy kafka package"
+  copy:
+    src: "kafka_{{ scala_version }}-{{ kafka_version }}.tgz" #kafka_2.13-3.6.1.tgz
+    dest: "/tmp/kafka_{{ scala_version }}-{{ kafka_version }}.tgz"
+
+# 解压缩kafka安装包
+- name: "uncompress kafka package"
+  unarchive:
+    src: "/tmp/kafka_{{ scala_version }}-{{ kafka_version }}.tgz"
+    dest: "{{ base_directory }}/kafka_{{ kafka_http_port }}"
+    copy: no
+    extra_opts: --strip-components=1
+
+# 配置关闭系统swap分区
+- name: "close system swap partition"
+  replace:
+    path: /etc/fstab
+    regexp: "^(.*) swap (.*)"
+    replace: '#\1 swap \2'
+
+# 使关闭系统swap分区立即生效
+- name: "close swap partition"
+  shell: swapoff -a
+
+# 配置系统security参数
+- name: "configure system security parameters"
+  lineinfile:
+    dest: /etc/security/limits.conf
+    line: "{{ item }}"
+  with_items:
+    - "{{ kafka_start_user }} soft nproc 65535"
+    - "{{ kafka_start_user }} hard nproc 65535"
+    - "{{ kafka_start_user }} soft nofile 65535"
+    - "{{ kafka_start_user }} hard nofile 65535"
+
+# 拷贝kafka管理脚本
+- name: "copy kafka ctl tools"
+  template:
+    src: kafka-server-ctl.sh.j2
+    dest: "/data/scriptsTools/kafka-server-ctl.sh"
+    mode: 755

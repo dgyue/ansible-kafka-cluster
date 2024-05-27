@@ -1,0 +1,69 @@
+#!/bin/bash
+#############################################################
+# 描述: Kafka Service  start/stop/restart script.           #
+# 作者: donggaoyue                                          #
+# 时间: 2024-05-23                                          #
+# 版本: 2.2.0                                               #
+# 维护目录: /data/sctiptsTools/kafka/                       #
+#############################################################
+
+KAFKA_HOME={{ base_directory }}/kafka_{{ kafka_http_port }}
+KAFKA_START_CMD="sudo -u {{ kafka_start_user }}  ${KAFKA_HOME}/bin/kafka-server-start.sh -daemon ${KAFKA_HOME}/config/kraft/server.properties"
+SIGNAL=${SIGNAL:-TERM}
+
+function getPid() {
+    KAFKA_SERVER_PID=$(ps ax | grep ' kafka\.Kafka ' | grep java | grep -v grep | awk '{print $1}')
+    return ${KAFKA_SERVER_PID}
+}
+
+function start() {
+    echo "Starting Kafka Service......"
+    getPid
+    if [ $KAFKA_SERVER_PID ]; then
+      echo "Kafka Service is already running. pid=${KAFKA_SERVER_PID}"
+    else
+      $KAFKA_START_CMD
+      sleep 3
+      getPid
+      if [ $KAFKA_SERVER_PID ]; then
+        echo "Kafka Service Started Sucess. pid=${KAFKA_SERVER_PID}"
+      else
+        echo "Kafka Service start faild....."
+      fi
+    fi
+}
+
+function stop() {
+    echo "Stopping Kafka Service......"
+    getPid
+    if [ $KAFKA_SERVER_PID ]; then
+      kill -s $SIGNAL $KAFKA_SERVER_PID
+      while [ -e /proc/$KAFKA_SERVER_PID ]; do
+        sleep 3
+      done
+      echo "Kafka Service Stop Success. pid=${KAFKA_SERVER_PID}"
+    else
+      echo "Kafka Service is not running."
+    fi
+}
+
+function restart() {
+    echo "Restarting Kafka Service......"
+    stop
+    sleep 10
+    start
+}
+
+case "$1" in
+  start)
+    start
+    ;;
+  stop)
+    stop
+    ;;
+  restart)
+    restart
+    ;;
+  *)
+    echo $"Usage: $0 {start|stop|restart}"
+esac

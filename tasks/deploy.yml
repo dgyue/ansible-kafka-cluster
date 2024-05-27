@@ -1,0 +1,35 @@
+---
+# 拷贝程序kraft文件到config/kraft目录
+- name: "copy server.properties file"
+  template:
+    src: server.properties.j2
+    dest: "{{ base_directory }}/kafka_{{ kafka_http_port }}/config/kraft/server.properties"
+    owner: "{{ kafka_start_user }}"
+    group: "{{ kafka_start_user }}"
+
+# 修改启动脚本jvm参数
+- name: "modify jvm options file"
+  shell: |
+    sed -i 's/KAFKA_HEAP_OPTS=.*$/KAFKA_HEAP_OPTS="{{ kafka_jvm_heap_opts }}"/g' {{ base_directory }}/kafka_{{ kafka_http_port }}/bin/kafka-server-start.sh
+
+# 格式化kafka存储目录
+- name: "format kafka storage"
+  shell: |
+    ./bin/kafka-storage.sh format -t {{ kafka_storage_uuid }} -c {{ base_directory }}/kafka_{{ kafka_http_port }}/config/kraft/server.properties
+  args:
+    chdir: "{{ base_directory }}/kafka_{{ kafka_http_port }}"
+
+# 授权程序目录属主和属组
+- name: "authorized owner and group"
+  file:
+    path: "{{ base_directory }}/kafka_{{ kafka_http_port }}"
+    owner: "{{ kafka_start_user }}"
+    group: "{{ kafka_start_user }}"
+    recurse: yes
+
+# 启动kafka程序
+- name: "start kafka server"
+  shell: |
+    bash ./kafka-server.ctl.sh start
+  args:
+    chdir: "/data/scriptsTools"

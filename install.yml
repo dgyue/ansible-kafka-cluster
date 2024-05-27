@@ -1,0 +1,16 @@
+---
+- hosts: kafka_cluster
+  gather_facts: no
+  vars:
+    - base_directory: /data/app
+    - kafka_start_user: kafka
+    - kafka_http_port: 9092
+    - kafka_controller_quorum_voters: '1@192.168.156.123:9093,2@192.168.156.124:9093,3@192.168.156.125:9093'
+    - kafka_storage_uuid: IQPrUGeoQDuaZVsc08ItNQ
+    - kafka_jvm_heap_opts: '-Xmx8G -Xms8G'
+    - scala_version: 2.13
+    - kafka_version: 3.6.1
+    - jdk_version:  11.0.23
+    - jdk_os_arch: x64
+  roles:
+   - role: kafka-cluster
